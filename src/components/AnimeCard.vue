@@ -19,12 +19,22 @@
         {{ anime.status }}
       </div>
 
-      <div
-        v-if="anime.isFavorite"
-        class="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm"
+      <button
+        type="button"
+        class="absolute right-3 top-3 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-background/90 text-lg font-semibold text-foreground shadow-sm backdrop-blur transition-all hover:scale-105 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        :aria-label="
+          anime.isFavorite
+            ? `Remove ${anime.title} from favorites`
+            : `Add ${anime.title} to favorites`
+        "
+        :aria-pressed="anime.isFavorite"
+        :disabled="isUpdatingFavorite"
+        @click.stop="toggleFavorite"
       >
-        ♥
-      </div>
+        <span :class="anime.isFavorite ? 'text-red-500' : 'text-muted-foreground'">
+          {{ anime.isFavorite ? '♥' : '♡' }}
+        </span>
+      </button>
     </div>
 
     <div class="space-y-3 p-3.5">
@@ -53,16 +63,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { Anime } from '@/lib/useAnimeList'
+import { useAnimeList } from '@/lib/useAnimeList'
 
 const props = defineProps<{
   anime: Anime
 }>()
 
 const router = useRouter()
+
+const { updateAnimeFavorite } = useAnimeList()
+
+const isUpdatingFavorite = ref(false)
 
 const progressPercentage = computed(() => {
   if (props.anime.episodes <= 0) {
@@ -93,6 +108,22 @@ const statusClass = computed(() => {
       return 'bg-background/90 text-foreground backdrop-blur'
   }
 })
+
+const toggleFavorite = async () => {
+  if (isUpdatingFavorite.value) {
+    return
+  }
+
+  isUpdatingFavorite.value = true
+
+  try {
+    await updateAnimeFavorite(props.anime.id, !props.anime.isFavorite)
+  } catch {
+    // The API error is available through the shared useAnimeList error ref.
+  } finally {
+    isUpdatingFavorite.value = false
+  }
+}
 
 const openDetails = () => {
   router.push(`/anime/${props.anime.id}`)

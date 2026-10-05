@@ -233,6 +233,50 @@ async function updateAnimeProgress(id: number, progress: number): Promise<Anime 
   return anime
 }
 
+async function updateAnimeFavorite(id: number, isFavorite: boolean): Promise<Anime> {
+  error.value = null
+
+  const response = await apiFetch<ApiResponse<ApiAnime>>(`/api/anime/${id}/favorite`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      is_favorite: isFavorite,
+    }),
+  })
+
+  const anime = mapAnime(response.data)
+  const index = animeList.value.findIndex((item) => item.id === id)
+
+  if (index === -1) {
+    animeList.value.unshift(anime)
+  } else {
+    animeList.value[index] = anime
+  }
+
+  return anime
+}
+
+async function updateAnimeStatus(id: number, status: AnimeStatus): Promise<Anime> {
+  error.value = null
+
+  const response = await apiFetch<ApiResponse<ApiAnime>>(`/api/anime/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+    }),
+  })
+
+  const anime = mapAnime(response.data)
+  const index = animeList.value.findIndex((item) => item.id === id)
+
+  if (index === -1) {
+    animeList.value.unshift(anime)
+  } else {
+    animeList.value[index] = anime
+  }
+
+  return anime
+}
+
 async function deleteAnime(id: number): Promise<boolean> {
   error.value = null
 
@@ -265,6 +309,8 @@ export function useAnimeList() {
     addAnime,
     updateAnime,
     updateAnimeProgress,
+    updateAnimeFavorite,
+    updateAnimeStatus,
     deleteAnime,
   }
 }

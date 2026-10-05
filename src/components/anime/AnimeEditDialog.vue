@@ -75,16 +75,20 @@
           <Label for="edit-anime-status">Status</Label>
 
           <Select v-model="form.status" :disabled="isSaving">
-            <SelectTrigger id="edit-anime-status" :aria-invalid="!!fieldErrors.status">
+            <SelectTrigger
+              id="edit-anime-status"
+              class="cursor-pointer"
+              :aria-invalid="!!fieldErrors.status"
+            >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="Watching">Watching</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Plan to Watch">Plan to Watch</SelectItem>
-              <SelectItem value="On Hold">On Hold</SelectItem>
-              <SelectItem value="Dropped">Dropped</SelectItem>
+              <SelectItem value="Watching" class="cursor-pointer">Watching</SelectItem>
+              <SelectItem value="Completed" class="cursor-pointer">Completed</SelectItem>
+              <SelectItem value="Plan to Watch" class="cursor-pointer"> Plan to Watch </SelectItem>
+              <SelectItem value="On Hold" class="cursor-pointer">On Hold</SelectItem>
+              <SelectItem value="Dropped" class="cursor-pointer">Dropped</SelectItem>
             </SelectContent>
           </Select>
 
@@ -95,17 +99,33 @@
 
         <div class="flex items-center justify-between rounded-lg border p-4">
           <div class="space-y-1">
-            <Label for="edit-anime-favorite" class="cursor-pointer"> Favorite </Label>
+            <Label
+              for="edit-anime-favorite"
+              class="cursor-pointer"
+              @click="form.isFavorite = !form.isFavorite"
+            >
+              Favorite
+            </Label>
 
             <p class="text-xs text-muted-foreground">Add this anime to your favorites.</p>
           </div>
 
-          <Switch
+          <button
             id="edit-anime-favorite"
-            v-model:checked="form.isFavorite"
-            class="cursor-pointer data-checked:bg-teal-600"
+            type="button"
+            role="switch"
+            :aria-checked="form.isFavorite"
+            :aria-label="form.isFavorite ? 'Remove from favorites' : 'Add to favorites'"
             :disabled="isSaving"
-          />
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            :class="form.isFavorite ? 'bg-teal-600' : 'bg-input'"
+            @click="form.isFavorite = !form.isFavorite"
+          >
+            <span
+              class="pointer-events-none block size-5 rounded-full bg-background shadow-sm transition-transform"
+              :class="form.isFavorite ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </button>
         </div>
 
         <div class="space-y-2">
@@ -139,6 +159,7 @@
             id="edit-anime-image"
             type="file"
             accept="image/*"
+            class="cursor-pointer"
             :disabled="isSaving"
             :aria-invalid="!!fieldErrors.image"
             @change="handleImageChange"
@@ -166,7 +187,7 @@
         <Button
           type="button"
           variant="outline"
-          class="w-full sm:w-auto"
+          class="w-full cursor-pointer sm:w-auto"
           :disabled="isSaving"
           @click="closeDialog"
         >
@@ -175,7 +196,7 @@
 
         <Button
           type="button"
-          class="w-full sm:w-auto"
+          class="w-full cursor-pointer sm:w-auto"
           :disabled="!isFormValid || isSaving"
           @click="saveChanges"
         >
@@ -210,8 +231,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-import { Switch } from '@/components/ui/switch'
 
 import { updateAnimeSchema } from '@/lib/animeValidation'
 import type { Anime, AnimeStatus, UpdateAnimeData } from '@/lib/useAnimeList'
