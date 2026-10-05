@@ -1,28 +1,25 @@
 <template>
-  <Dialog v-model:open="isOpen">
-    <DialogTrigger as-child>
-      <slot />
-    </DialogTrigger>
-
+  <Dialog :open="isOpen" @update:open="handleDialogOpenChange">
     <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Add Anime</DialogTitle>
+        <DialogTitle>Edit Anime</DialogTitle>
 
         <DialogDescription>
-          Add an anime to your personal list and start tracking your progress.
+          Update the information for this anime. Leave the image unchanged if you do not want to
+          replace it.
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-5 py-2">
         <div class="space-y-2">
-          <Label for="anime-title">Title</Label>
+          <Label for="edit-anime-title">Title</Label>
 
           <Input
-            id="anime-title"
+            id="edit-anime-title"
             v-model="form.title"
             placeholder="Enter anime title"
             autocomplete="off"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
             :aria-invalid="!!fieldErrors.title"
           />
 
@@ -32,17 +29,17 @@
         </div>
 
         <div class="space-y-2">
-          <Label for="anime-description">
+          <Label for="edit-anime-description">
             Description
             <span class="ml-1 text-xs font-normal text-muted-foreground"> Optional </span>
           </Label>
 
           <Textarea
-            id="anime-description"
+            id="edit-anime-description"
             v-model="form.description"
             placeholder="Add a short description..."
             class="min-h-24 resize-none"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
             :aria-invalid="!!fieldErrors.description"
           />
 
@@ -52,20 +49,21 @@
         </div>
 
         <div class="space-y-2">
-          <Label for="anime-episodes">Episodes</Label>
+          <Label for="edit-anime-episodes">Episodes</Label>
 
           <Input
-            id="anime-episodes"
+            id="edit-anime-episodes"
             v-model.number="form.episodes"
             type="number"
             min="1"
             placeholder="Enter total episodes"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
             :aria-invalid="!!fieldErrors.episodes"
           />
 
           <p class="text-xs text-muted-foreground">
-            This determines the maximum episode you can mark as watched.
+            Current progress: {{ currentProgress }} episode{{ currentProgress === 1 ? '' : 's' }}
+            watched.
           </p>
 
           <p v-if="fieldErrors.episodes" class="text-xs font-medium text-destructive">
@@ -74,15 +72,16 @@
         </div>
 
         <div class="space-y-2">
-          <Label for="anime-status">Status</Label>
+          <Label for="edit-anime-status">Status</Label>
 
-          <Select v-model="form.status" :disabled="isSubmitting">
-            <SelectTrigger id="anime-status" :aria-invalid="!!fieldErrors.status">
+          <Select v-model="form.status" :disabled="isSaving">
+            <SelectTrigger id="edit-anime-status" :aria-invalid="!!fieldErrors.status">
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
 
             <SelectContent>
               <SelectItem value="Watching">Watching</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
               <SelectItem value="Plan to Watch">Plan to Watch</SelectItem>
               <SelectItem value="On Hold">On Hold</SelectItem>
               <SelectItem value="Dropped">Dropped</SelectItem>
@@ -96,32 +95,32 @@
 
         <div class="flex items-center justify-between rounded-lg border p-4">
           <div class="space-y-1">
-            <Label for="anime-favorite" class="cursor-pointer"> Favorite </Label>
+            <Label for="edit-anime-favorite" class="cursor-pointer"> Favorite </Label>
 
             <p class="text-xs text-muted-foreground">Add this anime to your favorites.</p>
           </div>
 
           <Switch
-            id="anime-favorite"
+            id="edit-anime-favorite"
             v-model:checked="form.isFavorite"
             class="cursor-pointer data-checked:bg-teal-600"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="anime-website">
+          <Label for="edit-anime-website">
             Website
             <span class="ml-1 text-xs font-normal text-muted-foreground"> Optional </span>
           </Label>
 
           <Input
-            id="anime-website"
+            id="edit-anime-website"
             v-model="form.websiteUrl"
             type="url"
             placeholder="https://example.com"
             autocomplete="url"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
             :aria-invalid="!!fieldErrors.websiteUrl"
           />
 
@@ -131,22 +130,22 @@
         </div>
 
         <div class="space-y-2">
-          <Label for="anime-image">
-            Image
+          <Label for="edit-anime-image">
+            Replace Image
             <span class="ml-1 text-xs font-normal text-muted-foreground"> Optional </span>
           </Label>
 
           <Input
-            id="anime-image"
+            id="edit-anime-image"
             type="file"
             accept="image/*"
-            :disabled="isSubmitting"
+            :disabled="isSaving"
             :aria-invalid="!!fieldErrors.image"
             @change="handleImageChange"
           />
 
           <p class="text-xs text-muted-foreground">
-            Optional anime image. Maximum file size is 5 MB.
+            Leave empty to keep the current image. Maximum file size is 5 MB.
           </p>
 
           <p v-if="selectedImage" class="text-xs text-muted-foreground">
@@ -163,13 +162,24 @@
         </p>
       </div>
 
-      <DialogFooter>
-        <Button type="button" variant="outline" :disabled="isSubmitting" @click="closeDialog">
+      <DialogFooter class="flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          variant="outline"
+          class="w-full sm:w-auto"
+          :disabled="isSaving"
+          @click="closeDialog"
+        >
           Cancel
         </Button>
 
-        <Button type="button" :disabled="!isFormValid || isSubmitting" @click="addAnime">
-          {{ isSubmitting ? 'Adding...' : 'Add Anime' }}
+        <Button
+          type="button"
+          class="w-full sm:w-auto"
+          :disabled="!isFormValid || isSaving"
+          @click="saveChanges"
+        >
+          {{ isSaving ? 'Saving...' : 'Save Changes' }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -186,7 +196,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 
 import { Button } from '@/components/ui/button'
@@ -204,10 +213,10 @@ import {
 
 import { Switch } from '@/components/ui/switch'
 
-import { createAnimeSchema, type CreateAnimeForm } from '@/lib/animeValidation'
-import type { AnimeStatus } from '@/lib/useAnimeList'
+import { updateAnimeSchema } from '@/lib/animeValidation'
+import type { Anime, AnimeStatus, UpdateAnimeData } from '@/lib/useAnimeList'
 
-interface AddAnimeData {
+interface EditAnimeForm {
   title: string
   description: string
   episodes: number
@@ -227,17 +236,18 @@ interface FieldErrors {
 }
 
 const props = defineProps<{
-  onSubmit: (anime: AddAnimeData) => Promise<void>
+  open: boolean
+  anime: Anime
+  isSaving: boolean
+  errorMessage: string
 }>()
 
-const isOpen = ref(false)
-const isSubmitting = ref(false)
-const errorMessage = ref('')
-const selectedImage = ref<File | undefined>(undefined)
+const emit = defineEmits<{
+  'update:open': [open: boolean]
+  save: [updates: UpdateAnimeData]
+}>()
 
-const fieldErrors = reactive<FieldErrors>({})
-
-const form = reactive<CreateAnimeForm>({
+const form = reactive<EditAnimeForm>({
   title: '',
   description: '',
   episodes: 0,
@@ -247,12 +257,32 @@ const form = reactive<CreateAnimeForm>({
   image: undefined,
 })
 
+const selectedImage = ref<File | undefined>(undefined)
+
+const fieldErrors = reactive<FieldErrors>({})
+
+const isOpen = computed(() => props.open)
+
+const currentProgress = computed(() => props.anime.progress)
+
 const validationResult = computed(() => {
-  return createAnimeSchema.safeParse(form)
+  return updateAnimeSchema.safeParse({
+    title: form.title.trim(),
+    description: form.description.trim(),
+    episodes: form.episodes,
+    status: form.status,
+    isFavorite: form.isFavorite,
+    websiteUrl: form.websiteUrl.trim(),
+    image: form.image,
+  })
 })
 
 const isFormValid = computed(() => {
-  return validationResult.value.success
+  if (!validationResult.value.success) {
+    return false
+  }
+
+  return form.episodes >= props.anime.progress
 })
 
 const clearFieldErrors = () => {
@@ -264,29 +294,35 @@ const clearFieldErrors = () => {
   fieldErrors.image = undefined
 }
 
-const setFieldErrors = (result: ReturnType<typeof createAnimeSchema.safeParse>) => {
+const setFieldErrors = () => {
   clearFieldErrors()
 
-  if (result.success) {
-    return
-  }
+  const result = validationResult.value
 
-  for (const issue of result.error.issues) {
-    const field = issue.path[0]
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const field = issue.path[0]
 
-    if (
-      field === 'title' ||
-      field === 'description' ||
-      field === 'episodes' ||
-      field === 'status' ||
-      field === 'websiteUrl' ||
-      field === 'image'
-    ) {
-      if (!fieldErrors[field]) {
-        fieldErrors[field] = issue.message
+      if (
+        field === 'title' ||
+        field === 'description' ||
+        field === 'episodes' ||
+        field === 'status' ||
+        field === 'websiteUrl' ||
+        field === 'image'
+      ) {
+        if (!fieldErrors[field]) {
+          fieldErrors[field] = issue.message
+        }
       }
     }
   }
+
+  if (form.episodes < props.anime.progress) {
+    fieldErrors.episodes = `Episodes cannot be lower than your current progress of ${props.anime.progress}.`
+  }
+
+  return result
 }
 
 const handleImageChange = (event: Event) => {
@@ -297,10 +333,9 @@ const handleImageChange = (event: Event) => {
   form.image = file
 
   fieldErrors.image = undefined
-  errorMessage.value = ''
 
   if (file) {
-    const result = createAnimeSchema.shape.image?.safeParse(file)
+    const result = updateAnimeSchema.shape.image?.safeParse(file)
 
     if (result && !result.success) {
       fieldErrors.image = result.error.issues[0]?.message ?? 'Invalid image file.'
@@ -308,80 +343,74 @@ const handleImageChange = (event: Event) => {
   }
 }
 
-watch(isOpen, (open) => {
-  if (open) {
-    errorMessage.value = ''
-    clearFieldErrors()
-  }
-})
-
-const resetForm = () => {
-  form.title = ''
-  form.description = ''
-  form.episodes = 0
-  form.status = 'Plan to Watch'
-  form.isFavorite = false
-  form.websiteUrl = ''
+const populateForm = () => {
+  form.title = props.anime.title
+  form.description = props.anime.description
+  form.episodes = props.anime.episodes
+  form.status = props.anime.status
+  form.isFavorite = props.anime.isFavorite
+  form.websiteUrl = props.anime.websiteUrl
   form.image = undefined
 
   selectedImage.value = undefined
 
-  errorMessage.value = ''
   clearFieldErrors()
 }
 
 const closeDialog = () => {
-  if (isSubmitting.value) {
+  if (props.isSaving) {
     return
   }
 
-  isOpen.value = false
-  resetForm()
+  emit('update:open', false)
 }
 
-const addAnime = async () => {
-  if (isSubmitting.value) {
+const handleDialogOpenChange = (open: boolean) => {
+  if (props.isSaving && !open) {
     return
   }
 
-  const result = createAnimeSchema.safeParse({
-    title: form.title.trim(),
-    description: form.description.trim(),
-    episodes: form.episodes,
-    status: form.status,
-    isFavorite: form.isFavorite,
-    websiteUrl: form.websiteUrl.trim(),
-    image: form.image,
+  emit('update:open', open)
+}
+
+const saveChanges = () => {
+  if (props.isSaving) {
+    return
+  }
+
+  const result = setFieldErrors()
+
+  if (!result.success || form.episodes < props.anime.progress) {
+    return
+  }
+
+  emit('save', {
+    title: result.data.title,
+    description: result.data.description,
+    episodes: result.data.episodes,
+    status: result.data.status,
+    isFavorite: result.data.isFavorite,
+    websiteUrl: result.data.websiteUrl,
+    image: result.data.image,
   })
-
-  setFieldErrors(result)
-
-  if (!result.success) {
-    errorMessage.value = 'Please correct the highlighted fields.'
-    return
-  }
-
-  isSubmitting.value = true
-  errorMessage.value = ''
-
-  try {
-    await props.onSubmit({
-      title: result.data.title,
-      description: result.data.description,
-      episodes: result.data.episodes,
-      status: result.data.status,
-      isFavorite: result.data.isFavorite,
-      websiteUrl: result.data.websiteUrl,
-      image: result.data.image,
-    })
-
-    isOpen.value = false
-    resetForm()
-  } catch (err) {
-    errorMessage.value =
-      err instanceof Error ? err.message : 'Failed to add anime. Please try again.'
-  } finally {
-    isSubmitting.value = false
-  }
 }
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) {
+      populateForm()
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.anime.id,
+  () => {
+    if (props.open) {
+      populateForm()
+    }
+  },
+)
 </script>

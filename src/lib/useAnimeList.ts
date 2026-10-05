@@ -5,15 +5,18 @@ export type AnimeStatus = 'Watching' | 'Completed' | 'Plan to Watch' | 'On Hold'
 
 export interface Anime {
   id: number
+  userId: number
   title: string
   description: string
-  image: string
-  year: number
-  status: AnimeStatus
-  progress: number
+  imageUrl: string
+  imagePublicId: string
   episodes: number
+  progress: number
+  status: AnimeStatus
   isFavorite: boolean
   websiteUrl: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AddAnimeData {
@@ -23,6 +26,7 @@ export interface AddAnimeData {
   status: AnimeStatus
   isFavorite: boolean
   websiteUrl: string
+  image?: File
 }
 
 export interface UpdateAnimeData {
@@ -32,6 +36,7 @@ export interface UpdateAnimeData {
   status?: AnimeStatus
   isFavorite?: boolean
   websiteUrl?: string
+  image?: File
 }
 
 interface ApiAnime {
@@ -39,6 +44,8 @@ interface ApiAnime {
   user_id: number
   title: string
   description: string | null
+  image_url: string | null
+  image_public_id: string | null
   episodes: number
   progress: number
   status: AnimeStatus
@@ -63,20 +70,20 @@ let loadPromise: Promise<void> | null = null
 let hasLoaded = false
 
 function mapAnime(anime: ApiAnime): Anime {
-  // Preserve frontend-only fields if this anime is already loaded.
-  const existingAnime = animeList.value.find((item) => item.id === anime.id)
-
   return {
     id: anime.id,
+    userId: anime.user_id,
     title: anime.title,
     description: anime.description ?? '',
-    image: existingAnime?.image ?? FALLBACK_IMAGE,
-    year: existingAnime?.year ?? new Date().getFullYear(),
-    status: anime.status,
-    progress: anime.progress,
+    imageUrl: anime.image_url ?? FALLBACK_IMAGE,
+    imagePublicId: anime.image_public_id ?? '',
     episodes: anime.episodes,
+    progress: anime.progress,
+    status: anime.status,
     isFavorite: anime.is_favorite,
     websiteUrl: anime.website_url ?? '',
+    createdAt: anime.created_at,
+    updatedAt: anime.updated_at,
   }
 }
 
@@ -98,7 +105,7 @@ async function loadAnimeList(force = false): Promise<void> {
 
   loadPromise = (async () => {
     try {
-      const response = await apiFetch<ApiResponse<ApiAnime[]>>('/anime/getall')
+      const response = await apiFetch<ApiResponse<ApiAnime[]>>('/api/anime')
 
       animeList.value = response.data.map(mapAnime)
       hasLoaded = true
@@ -115,19 +122,31 @@ async function loadAnimeList(force = false): Promise<void> {
   return loadPromise
 }
 
+function createAnimeFormData(data: AddAnimeData): FormData {
+  const formData = new FormData()
+
+  formData.append('title', data.title.trim())
+  formData.append('description', data.description.trim())
+  formData.append('episodes', String(data.episodes))
+  formData.append('status', data.status)
+  formData.append('is_favorite', String(data.isFavorite))
+  formData.append('website_url', data.websiteUrl.trim())
+
+  if (data.image) {
+    formData.append('image', data.image)
+  }
+
+  return formData
+}
+
 async function addAnime(data: AddAnimeData): Promise<Anime> {
   error.value = null
 
-  const response = await apiFetch<ApiResponse<ApiAnime>>('/anime/create', {
+  const formData = createAnimeFormData(data)
+
+  const response = await apiFetch<ApiResponse<ApiAnime>>('/api/anime/create', {
     method: 'POST',
-    body: JSON.stringify({
-      title: data.title.trim(),
-      description: data.description,
-      episodes: data.episodes,
-      status: data.status,
-      is_favorite: data.isFavorite,
-      website_url: data.websiteUrl.trim() || null,
-    }),
+    body: formData,
   })
 
   const anime = mapAnime(response.data)
@@ -137,41 +156,52 @@ async function addAnime(data: AddAnimeData): Promise<Anime> {
   return anime
 }
 
-async function updateAnime(id: number, updates: UpdateAnimeData): Promise<Anime | undefined> {
-  error.value = null
-
-  const payload: Record<string, unknown> = {}
+function createUpdateFormData(updates: UpdateAnimeData): FormData {
+  const formData = new FormData()
 
   if (updates.title !== undefined) {
-    payload.title = updates.title
+    formData.append('title', updates.title.trim())
   }
 
   if (updates.description !== undefined) {
-    payload.description = updates.description
+    formData.append('description', updates.description.trim())
   }
 
   if (updates.episodes !== undefined) {
-    payload.episodes = updates.episodes
+    formData.append('episodes', String(updates.episodes))
   }
 
   if (updates.status !== undefined) {
-    payload.status = updates.status
+    formData.append('status', updates.status)
   }
 
   if (updates.isFavorite !== undefined) {
-    payload.is_favorite = updates.isFavorite
+    formData.append('is_favorite', String(updates.isFavorite))
   }
 
   if (updates.websiteUrl !== undefined) {
-    payload.website_url = updates.websiteUrl.trim() || null
+    formData.append('website_url', updates.websiteUrl.trim())
   }
 
-  const response = await apiFetch<ApiResponse<ApiAnime>>(`/anime/update/${id}`, {
+  if (updates.image) {
+    formData.append('image', updates.image)
+  }
+
+  return formData
+}
+
+async function updateAnime(id: number, updates: UpdateAnimeData): Promise<Anime> {
+  error.value = null
+
+  const formData = createUpdateFormData(updates)
+
+  const response = await apiFetch<ApiResponse<ApiAnime>>(`/api/anime/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(payload),
+    body: formData,
   })
 
   const anime = mapAnime(response.data)
+
   const index = animeList.value.findIndex((item) => item.id === id)
 
   if (index === -1) {
@@ -186,7 +216,7 @@ async function updateAnime(id: number, updates: UpdateAnimeData): Promise<Anime 
 async function updateAnimeProgress(id: number, progress: number): Promise<Anime | undefined> {
   error.value = null
 
-  const response = await apiFetch<ApiResponse<ApiAnime>>(`/anime/update/${id}/progress`, {
+  const response = await apiFetch<ApiResponse<ApiAnime>>(`/api/anime/${id}/progress`, {
     method: 'PATCH',
     body: JSON.stringify({ progress }),
   })
@@ -206,7 +236,7 @@ async function updateAnimeProgress(id: number, progress: number): Promise<Anime 
 async function deleteAnime(id: number): Promise<boolean> {
   error.value = null
 
-  await apiFetch<ApiResponse<null>>(`/anime/delete/${id}`, {
+  await apiFetch<ApiResponse<null>>(`/api/anime/${id}`, {
     method: 'DELETE',
   })
 
@@ -220,7 +250,6 @@ async function deleteAnime(id: number): Promise<boolean> {
 }
 
 export function useAnimeList() {
-  // Start loading the list only once for the shared module state.
   if (!hasLoaded && !loadPromise) {
     void loadAnimeList().catch(() => {
       // The error is available through the shared error ref.

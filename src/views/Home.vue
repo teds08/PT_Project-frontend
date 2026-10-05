@@ -27,6 +27,7 @@
             type="search"
             placeholder="Search your anime..."
             class="h-11 w-full sm:max-w-md"
+            :disabled="isLoading"
           />
         </div>
       </div>
@@ -42,6 +43,7 @@
               ? 'border-b-2 border-foreground text-foreground'
               : 'text-muted-foreground hover:text-foreground'
           "
+          :disabled="isLoading"
           @click="selectedFilter = filter"
         >
           {{ filter }}
@@ -49,7 +51,35 @@
       </div>
 
       <div
-        v-if="filteredAnimeList.length > 0"
+        v-if="isLoading"
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      >
+        <div v-for="index in 6" :key="index" class="overflow-hidden rounded-xl border bg-card">
+          <div class="aspect-2/3 animate-pulse bg-muted" />
+
+          <div class="space-y-3 p-3.5">
+            <div class="h-5 w-3/4 animate-pulse rounded bg-muted" />
+            <div class="h-3 w-full animate-pulse rounded bg-muted" />
+            <div class="h-1.5 w-full animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else-if="error"
+        class="rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center"
+      >
+        <h2 class="font-semibold">Unable to load your anime list</h2>
+
+        <p class="mt-2 text-sm text-muted-foreground">
+          {{ error }}
+        </p>
+
+        <Button type="button" class="mt-5" @click="retryLoading"> Try Again </Button>
+      </div>
+
+      <div
+        v-else-if="filteredAnimeList.length > 0"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
         <AnimeCard v-for="anime in filteredAnimeList" :key="anime.id" :anime="anime" />
@@ -78,7 +108,7 @@ import { Input } from '@/components/ui/input'
 
 import { useAnimeList, type AddAnimeData } from '@/lib/useAnimeList'
 
-const { animeList, addAnime } = useAnimeList()
+const { animeList, isLoading, error, loadAnimeList, addAnime } = useAnimeList()
 
 const filters = ['All', 'Watching', 'Completed', 'Plan to Watch', 'On Hold']
 
@@ -99,5 +129,13 @@ const filteredAnimeList = computed(() => {
 
 const handleAddAnime = async (data: AddAnimeData): Promise<void> => {
   await addAnime(data)
+}
+
+const retryLoading = async () => {
+  try {
+    await loadAnimeList(true)
+  } catch {
+    // The shared error ref is updated by useAnimeList.
+  }
 }
 </script>

@@ -5,7 +5,7 @@
   >
     <div class="relative aspect-2/3 overflow-hidden bg-muted">
       <img
-        :src="anime.image"
+        :src="anime.imageUrl"
         :alt="anime.title"
         class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
       />
@@ -19,8 +19,11 @@
         {{ anime.status }}
       </div>
 
-      <div class="absolute bottom-3 left-3 right-3 text-xs font-medium text-white">
-        {{ anime.year }}
+      <div
+        v-if="anime.isFavorite"
+        class="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm"
+      >
+        ♥
       </div>
     </div>
 
@@ -53,15 +56,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-interface Anime {
-  id: number
-  title: string
-  image: string
-  year: number
-  status: string
-  progress: number
-  episodes: number
-}
+import type { Anime } from '@/lib/useAnimeList'
 
 const props = defineProps<{
   anime: Anime
